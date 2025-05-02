@@ -50,13 +50,13 @@ def custom_loss(y_true, y_pred):
                   n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1]
         , y_pred[:, :-1, n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1])
 
-    return K.concatenate([loss1a, loss1b, loss2a, loss3, loss4, loss_crit])
+    return K.concatenate([loss1a, loss1b, loss2a, loss2b, loss3, loss4, loss_crit])
 
 # metrics for each part of interest - useful for debugging
 def wasd_acc(y_true, y_pred):
     return keras.metrics.binary_accuracy(y_true[:, :, 0:4], y_pred[:, :, 0:4])
 
-def j_acc(y_true, y_pred):  # other keys, space, ctrl, shift, 1,2,3, r
+def space_acc(y_true, y_pred):  # space
     return keras.metrics.binary_accuracy(y_true[:, :, 4:5], y_pred[:, :, 4:5])
 
 def Lclk_acc(y_true, y_pred):
@@ -83,14 +83,6 @@ def crit_mse(y_true, y_pred):
                   n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1]
         , y_pred[:, :-1, n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1])
 
-def m_x_0(y_true, y_pred):
-    return keras.backend.mean(
-        keras.backend.greater(y_true[:, :, n_keys + n_clicks + int(np.floor(n_mouse_x / 2))], 0.5))
-
-def m_y_0(y_true, y_pred):
-    return keras.backend.mean(
-        keras.backend.greater(y_true[:, :, n_keys + n_clicks + n_mouse_x + int(np.floor(n_mouse_y / 2))], 0.5))
-
 def build_model(load_weights=True):
     # useful tutorial for building, https://keras.io/getting-started/functional-api-guide/
     print('-- building model from scratch --')
@@ -107,11 +99,6 @@ def build_model(load_weights=True):
                    recurrent_dropout=0.5)(x)
     x = TimeDistributed(Flatten())(x)
 
-    x = TimeDistributed(Dropout(0.5))(x)
-    x = LSTM(256, stateful=False, return_sequences=True, dropout=0., recurrent_dropout=0.)(x)
-    x = TimeDistributed(Dropout(0.5))(x)
-    x = LSTM(256, stateful=False, return_sequences=True)(x)
-
     # 3) add shared fc layers
     dense_5 = x
 
@@ -125,15 +112,14 @@ def build_model(load_weights=True):
     model = Model(input_1, output_all)
 
     # Load weights if they exist
-    weights_path = "saved_model/minecraft_behavior_model.weights.h5"
-    if load_weights and os.path.exists(weights_path):
-        print(f"Loading weights from {weights_path}")
-        model.load_weights(weights_path)
+    if load_weights and os.path.exists(checkpoint_path):
+        print(f"Loading weights from {checkpoint_path}")
+        model.load_weights(checkpoint_path)
 
     print(model.summary())
 
     opt = optimizers.Adam(learning_rate=l_rate)
-    model.compile(loss=custom_loss, optimizer=opt, metrics=[Lclk_acc, m_x_acc, m_y_acc, wasd_acc, crit_mse])
+    model.compile(loss=custom_loss, optimizer=opt, metrics=[Lclk_acc, Rclk_acc, wasd_acc, space_acc, m_x_acc, m_y_acc, crit_mse])
     print('successfully compiled model')
     return model
 
@@ -202,7 +188,6 @@ if __name__ == "__main__":
     print(f"Using data generator with {len(train_generator)} batches")
 
     # Setup model checkpoint callback to save weights periodically
-    checkpoint_path = "saved_model/minecraft_behavior_model.weights.h5"
     checkpoint_callback = ModelCheckpoint(
         checkpoint_path,
         monitor='val_loss',
@@ -232,5 +217,5 @@ if __name__ == "__main__":
         raise e
 
     # Save the final model
-    model.save("saved_model/minecraft_behavior_model.keras")
-    print("Model saved to saved_model/minecraft_behavior_model.keras")
+    model.save(saved_model_path)
+    print("Model saved to " + saved_model_path)
