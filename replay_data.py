@@ -32,9 +32,15 @@ for frame_idx in range(num_frames):
     offset = frame_idx * frame_size
     frame_pixels = data[offset : offset + n_pixels]
     key_inputs = data[offset + n_pixels : offset + n_pixels + n_keys]
-    yaw_bin = data[offset + n_pixels + n_keys]
-    pitch_bin = data[offset + n_pixels + n_keys + 1]
-    marker = data[offset + frame_size - 1]
+    click_inputs = data[offset + n_pixels + n_keys : offset + n_pixels + n_keys + n_clicks]
+    yaw_bin = data[offset + n_pixels + n_keys + n_clicks]
+    pitch_bin = data[offset + n_pixels + n_keys + n_clicks + 1]
+
+    print(f"Key inputs: {key_inputs}")
+    print(f"Click inputs: {click_inputs}")
+    print(f"Raw yaw byte: {yaw_bin}, Raw pitch byte: {pitch_bin}")
+
+    marker = data[offset + n_pixels + n_keys + n_clicks + num_head_bins]
 
     if marker != 255:
         print(f"Frame {frame_idx} missing marker!")
@@ -45,18 +51,7 @@ for frame_idx in range(num_frames):
     frame = cv2.resize(frame, (frame_width * 3, frame_height * 3), interpolation=cv2.INTER_NEAREST)
     frame_color = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
-    # Overlay keybinds
-    for i, pressed in enumerate(key_inputs):
-        label = key_labels[i]
-        pos = key_positions.get(label)
-        if pos:
-            color = (0, 255, 0) if pressed == 1 else (100, 100, 100)
-            cv2.putText(frame_color, label, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
-
-    # Overlay head movement direction
-    center = (frame_color.shape[1] // 2, frame_color.shape[0] // 2)
-    yaw_val = mouse_x_bins[yaw_bin] if yaw_bin < n_mouse_x else 0
-    pitch_val = mouse_y_bins[pitch_bin] if pitch_bin < n_mouse_y else 0
+    print(f"yaw: {yaw_bin} pitch: {pitch_bin}")
 
     # Show the frame
     cv2.imshow('Replay with Keybinds + Head Movement', frame_color)

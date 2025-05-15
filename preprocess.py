@@ -56,6 +56,7 @@ class ScreendataPreprocessor:
 
                 if marker != self.marker_byte:
                     print(f"Frame {i+t} has invalid marker. Skipping sequence.")
+                    print(f"Expected marker: {self.marker_byte}, Found: {marker} at frame {i + t}")
                     break
 
                 gray = np.frombuffer(frame_data, dtype=np.uint8).reshape((self.frame_height, self.frame_width))

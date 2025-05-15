@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 import os
+
+from config import lite_model_path, target_model_for_lite_conversion_path
 from train import custom_loss, wasd_acc, space_acc, Lclk_acc, Rclk_acc, m_x_acc, m_y_acc, crit_mse, input_shape
 
 
@@ -36,6 +38,7 @@ def convert_to_tflite(keras_model_path, tflite_model_path):
     ]
     converter.experimental_new_converter = True
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    converter.target_spec.supported_types = [tf.float16]
 
     # Special handling for LSTM/ConvLSTM layers
     converter._experimental_lower_tensor_list_ops = False
@@ -86,20 +89,16 @@ def convert_to_tflite(keras_model_path, tflite_model_path):
 
 
 if __name__ == "__main__":
-    # Paths
-    keras_model_dir = "saved_model/minecraft_behavior_model.keras"
-    tflite_model_path = "tflite_model/minecraft_behavior_model.tflite"
-
     # Create directory if needed
-    os.makedirs(os.path.dirname(tflite_model_path), exist_ok=True)
+    os.makedirs(os.path.dirname(lite_model_path), exist_ok=True)
 
     # Convert the model
-    success = convert_to_tflite(keras_model_dir, tflite_model_path)
+    success = convert_to_tflite(target_model_for_lite_conversion_path, lite_model_path)
 
     if success:
         # Verify the model
         print("\nVerifying TFLite model...")
-        interpreter = tf.lite.Interpreter(model_path=tflite_model_path)
+        interpreter = tf.lite.Interpreter(model_path=lite_model_path)
         interpreter.allocate_tensors()
 
         print("\nInput details:")
@@ -111,3 +110,4 @@ if __name__ == "__main__":
         print("\nConversion successful!")
     else:
         print("\nConversion failed")
+

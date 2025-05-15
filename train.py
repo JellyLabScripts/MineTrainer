@@ -8,7 +8,10 @@ from tensorflow.keras import losses
 from tensorflow import keras
 import tensorflow.keras.backend as K
 from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.utils import Sequence
+from tensorflow.keras.callbacks import Callback
+
 import os
 import numpy as np
 
@@ -90,12 +93,12 @@ def build_model(load_weights=True):
     base_model = EfficientNetB0(weights='imagenet', input_shape=(input_shape[1:]), include_top=False)
     base_model.trainable = True
 
-    intermediate_model = Model(inputs=base_model.input, outputs=base_model.layers[161].output)
+    intermediate_model = Model(inputs=base_model.input, outputs=base_model.layers[9].output)
     intermediate_model.trainable = True
 
     input_1 = Input(shape=input_shape, name='main_in')
     x = TimeDistributed(intermediate_model)(input_1)
-    x = ConvLSTM2D(filters=256, kernel_size=(3, 3), stateful=False, return_sequences=True, dropout=0.5,
+    x = ConvLSTM2D(filters=64, kernel_size=(3, 3), stateful=False, return_sequences=True, dropout=0.5,
                    recurrent_dropout=0.5)(x)
     x = TimeDistributed(Flatten())(x)
 
@@ -129,6 +132,7 @@ class DataGenerator(Sequence):
     def __init__(self, input_dir, output_dir, batch_size=32, shuffle=True):
         self.X_files = sorted([os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.endswith("_X.npy")])
         self.Y_files = sorted([os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith("_Y.npy")])
+
         self.batch_size = batch_size
         self.shuffle = shuffle
 
@@ -177,8 +181,24 @@ def generate_validation_data(batch_size=1, shuffle=True):
     output_dir = validation_dataset_dir + "/output"
     return DataGenerator(input_dir, output_dir, batch_size=batch_size, shuffle=shuffle)
 
-if __name__ == "__main__":
 
+class EpochCheckpoint(Callback):
+    def __init__(self, output_dir, save_freq=1):
+        super(EpochCheckpoint, self).__init__()
+        self.output_dir = output_dir
+        self.save_freq = save_freq
+        os.makedirs(output_dir, exist_ok=True)
+
+    def on_epoch_end(self, epoch, logs=None):
+        if (epoch + 1) % self.save_freq == 0:
+            epoch_dir = os.path.join(self.output_dir, f"epoch_{epoch + 1}")
+            os.makedirs(epoch_dir, exist_ok=True)
+            model_path = os.path.join(epoch_dir, "model.keras")
+            self.model.save(model_path)
+            print(f"\nModel saved to {model_path}")
+
+
+if __name__ == "__main__":
     # Create saved_model directory if it doesn't exist
     os.makedirs("saved_model", exist_ok=True)
 
@@ -187,15 +207,21 @@ if __name__ == "__main__":
     train_generator = generate_data(batch_size=batch_size)
     print(f"Using data generator with {len(train_generator)} batches")
 
-    # Setup model checkpoint callback to save weights periodically
-    checkpoint_callback = ModelCheckpoint(
-        checkpoint_path,
-        monitor='val_loss',
-        save_best_only=False,
-        save_weights_only=True,
-        mode='auto',
-        save_freq='epoch'
-    )
+    # Setup callbacks
+    callbacks = [
+        ModelCheckpoint(
+            checkpoint_path,
+            monitor='val_loss',
+            save_best_only=False,
+            save_weights_only=True,
+            mode='auto',
+            save_freq='epoch'
+        ),
+        EpochCheckpoint(
+            output_dir=checkpoint_dir,
+            save_freq=1  # Save every epoch
+        )
+    ]
 
     try:
         model.fit(
@@ -203,7 +229,7 @@ if __name__ == "__main__":
             epochs=epochs,
             shuffle=False,  # generator handles shuffling
             validation_data=generate_validation_data(),
-            callbacks=[checkpoint_callback]
+            callbacks=callbacks
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user. Saving model weights...")
