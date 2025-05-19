@@ -40,6 +40,12 @@ class ScreendataPreprocessor:
         X_seq = []
         Y_seq = []
 
+        key_counts = np.zeros(self.n_keys, dtype=np.int64)
+        click_counts = np.zeros(self.n_clicks, dtype=np.int64)
+        yaw_bin_counts = np.zeros(self.n_mouse_x, dtype=np.int64)
+        pitch_bin_counts = np.zeros(self.n_mouse_y, dtype=np.int64)
+        total_valid_frames = 0
+
         for i in tqdm(range(total_frames - self.n_timesteps)):
             frames = []
             labels = []
@@ -61,6 +67,15 @@ class ScreendataPreprocessor:
 
                 gray = np.frombuffer(frame_data, dtype=np.uint8).reshape((self.frame_height, self.frame_width))
                 rgb = np.stack([gray] * 3, axis=-1)
+
+                key_array = np.frombuffer(key_data, dtype=np.uint8)
+                click_array = np.frombuffer(click_data, dtype=np.uint8)
+
+                key_counts += key_array
+                click_counts += click_array
+                yaw_bin_counts[yaw_bin] += 1
+                pitch_bin_counts[pitch_bin] += 1
+                total_valid_frames += 1
 
                 frames.append(rgb)
 
@@ -87,10 +102,24 @@ class ScreendataPreprocessor:
         os.makedirs(output_dir, exist_ok=True)
         np.save(os.path.join(input_dir, f"{name}_X.npy"), X)
         np.save(os.path.join(output_dir, f"{name}_Y.npy"), Y)
-        print(f"Saved: {name}_X.npy to input/, {name}_Y.npy to output/")
-        print("Done.")
+
+        return {
+            'key_counts': key_counts,
+            'click_counts': click_counts,
+            'yaw_bin_counts': yaw_bin_counts,
+            'pitch_bin_counts': pitch_bin_counts,
+            'total_valid_frames': total_valid_frames
+        }
+
 
 if __name__ == "__main__":
+    # Initialize statistics
+    global_key_counts = np.zeros(n_keys, dtype=np.int64)
+    global_click_counts = np.zeros(n_clicks, dtype=np.int64)
+    global_yaw_counts = np.zeros(len(mouse_x_bins), dtype=np.int64)
+    global_pitch_counts = np.zeros(len(mouse_y_bins), dtype=np.int64)
+    global_total_frames = 0
+
     # Process training data
     txt_files = [f for f in os.listdir(raw_training_dataset_dir) if f.endswith(".txt")]
     for filename in txt_files:
@@ -98,7 +127,14 @@ if __name__ == "__main__":
         name = os.path.splitext(filename)[0]
         print(f"Processing training file {filename}...")
         processor = ScreendataPreprocessor(filepath, preprocessed_dataset_dir)
-        processor.process(name=name)
+        stats = processor.process(name=name)
+
+        # Accumulate stats
+        global_key_counts += stats['key_counts']
+        global_click_counts += stats['click_counts']
+        global_yaw_counts += stats['yaw_bin_counts']
+        global_pitch_counts += stats['pitch_bin_counts']
+        global_total_frames += stats['total_valid_frames']
 
     # Process validation data
     val_txt_files = [f for f in os.listdir(raw_validation_dataset_dir) if f.endswith(".txt")]
@@ -107,4 +143,36 @@ if __name__ == "__main__":
         name = os.path.splitext(filename)[0]
         print(f"Processing validation file {filename}...")
         processor = ScreendataPreprocessor(filepath, validation_dataset_dir)
-        processor.process(name=name)
+        stats = processor.process(name=name)
+
+        # Accumulate stats (optional - you might want separate validation stats)
+        global_key_counts += stats['key_counts']
+        global_key_counts += stats['key_counts']
+        global_click_counts += stats['click_counts']
+        global_yaw_counts += stats['yaw_bin_counts']
+        global_pitch_counts += stats['pitch_bin_counts']
+        global_total_frames += stats['total_valid_frames']
+
+    # Make sure these are defined in your config.py
+    key_labels = [f"Key_{i}" for i in range(n_keys)]  # Replace with actual labels
+    click_labels = [f"Click_{i}" for i in range(n_clicks)]  # Replace with actual labels
+
+    print("\n--- Key Press Statistics ---")
+    for i, count in enumerate(global_key_counts):
+        percent = (count / global_total_frames) * 100 if global_total_frames > 0 else 0
+        print(f"Key {key_labels[i]}: {percent:.2f}% pressed")
+
+    print("\n--- Click Statistics ---")
+    for i, count in enumerate(global_click_counts):
+        percent = (count / global_total_frames) * 100 if global_total_frames > 0 else 0
+        print(f"Click {click_labels[i]}: {percent:.2f}% pressed")
+
+    print("\n--- Yaw Bin Distribution ---")
+    for i, count in enumerate(global_yaw_counts):
+        percent = (count / global_total_frames) * 100 if global_total_frames > 0 else 0
+        print(f"Yaw bin {mouse_x_bins[i]}: {percent:.2f}%")
+
+    print("\n--- Pitch Bin Distribution ---")
+    for i, count in enumerate(global_pitch_counts):
+        percent = (count / global_total_frames) * 100 if global_total_frames > 0 else 0
+        print(f"Pitch bin {mouse_y_bins[i]}: {percent:.2f}%")

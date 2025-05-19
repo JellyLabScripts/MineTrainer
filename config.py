@@ -7,18 +7,21 @@ saved_model_path = 'saved_model/minecraft_behavior_model.keras'
 checkpoint_path = 'saved_model/minecraft_behavior_model.weights.h5'
 
 # Lite model conversion
-regular_model_path = 'saved_checkpoints/epoch_9/model.keras'
+regular_model_path = 'saved_model/minecraft_behavior_model.keras'
 target_model_for_lite_conversion_path = regular_model_path
 lite_model_path = 'tflite_model/minecraft_behavior_model.tflite'
 
 # Frame dimensions
-frame_width = 32
-frame_height = 32
+frame_width = 280
+frame_height = 150
 n_pixels = frame_width * frame_height
 
 # Keypress and mouse settings
 n_keys = 5                # Number of keyboard keys tracked
 n_clicks = 2              # Mouse clicks (left, right)
+
+key_labels = ['A', 'W', 'S', 'D', 'J']
+click_labels = ['L', 'R']
 
 # Mouse movement bins (discretization)
 mouse_x_bins = [
@@ -38,13 +41,13 @@ marker_byte = 255
 frame_size = n_pixels + n_keys + n_clicks + 2 + 1  # +1 for marker
 
 # Sequence length
-n_timesteps = 60
+n_timesteps = 20
 
 # Actual training settings
 batch_size = 1
 l_rate = 0.0001
 GAMMA = 0.995  # reward decay for RL setting
-dimension = (frame_width, frame_height)
+dimension = (frame_height, frame_width)
 input_shape = (n_timesteps, dimension[0], dimension[1], 3)
 epochs = 20
 validation_split = 0.0

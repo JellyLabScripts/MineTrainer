@@ -19,11 +19,6 @@ from config import *
 
 # loss to minimise
 def custom_loss(y_true, y_pred):
-    # y_true is shape [n_batch, n_timesteps, n_keys+n_clicks+n_mouse_x+n_mouse_y+n_reward+n_advantage]
-    # where n_reward and n_advantage must =1
-    # y_pred is shape [n_batch, n_timesteps, n_keys+n_clicks+n_mouse_x+n_mouse_y+n_val]
-    # we'll use y_true to send in reward and eventually original advantage fn (or could recompute this?)
-
     # wasd keys
     loss1a = losses.binary_crossentropy(y_true[:, :, 0:4],
                                         y_pred[:, :, 0:4])
@@ -54,6 +49,7 @@ def custom_loss(y_true, y_pred):
         , y_pred[:, :-1, n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1])
 
     return K.concatenate([loss1a, loss1b, loss2a, loss2b, loss3, loss4, loss_crit])
+
 
 # metrics for each part of interest - useful for debugging
 def wasd_acc(y_true, y_pred):
@@ -93,13 +89,12 @@ def build_model(load_weights=True):
     base_model = EfficientNetB0(weights='imagenet', input_shape=(input_shape[1:]), include_top=False)
     base_model.trainable = True
 
-    intermediate_model = Model(inputs=base_model.input, outputs=base_model.layers[9].output)
+    intermediate_model = Model(inputs=base_model.input, outputs=base_model.layers[161].output)
     intermediate_model.trainable = True
 
     input_1 = Input(shape=input_shape, name='main_in')
     x = TimeDistributed(intermediate_model)(input_1)
-    x = ConvLSTM2D(filters=64, kernel_size=(3, 3), stateful=False, return_sequences=True, dropout=0.5,
-                   recurrent_dropout=0.5)(x)
+    x = ConvLSTM2D(filters=256, kernel_size=(3, 3), stateful=False, return_sequences=True)(x)
     x = TimeDistributed(Flatten())(x)
 
     # 3) add shared fc layers
