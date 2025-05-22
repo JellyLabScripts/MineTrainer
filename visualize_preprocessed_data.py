@@ -122,7 +122,7 @@ def visualize_preprocessed_data(input_dir, output_dir, name, sequence_idx=0, num
 
 
 if __name__ == "__main__":
-    name = "screendata_catumn_2025-05-15_21-31-43-329"
+    name = "screendata_2025-05-11_10-12-14-155"
     input_dir = os.path.join(preprocessed_dataset_dir, "input")
     output_dir = os.path.join(preprocessed_dataset_dir, "output")
 

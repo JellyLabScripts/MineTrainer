@@ -88,4 +88,4 @@ if __name__ == "__main__":
     output_dir = "preprocessed_dataset/preprocessed_validation_dataset/output"
 
     for i in range(66):
-        test_model(name, input_dir, output_dir, index=i, visualize=False, print_raw_data=False)
+        test_model(name, input_dir, output_dir, index=i, visualize=True, print_raw_data=False)

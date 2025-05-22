@@ -7,13 +7,16 @@ saved_model_path = 'saved_model/minecraft_behavior_model.keras'
 checkpoint_path = 'saved_model/minecraft_behavior_model.weights.h5'
 
 # Lite model conversion
-regular_model_path = 'saved_model/minecraft_behavior_model.keras'
+regular_model_path = 'saved_checkpoints/epoch_17/model.keras'
 target_model_for_lite_conversion_path = regular_model_path
 lite_model_path = 'tflite_model/minecraft_behavior_model.tflite'
 
 # Frame dimensions
-frame_width = 280
-frame_height = 150
+raw_frame_width = 80
+raw_frame_height = 45
+raw_n_pixels = raw_frame_width * raw_frame_height
+frame_width = 80
+frame_height = 45
 n_pixels = frame_width * frame_height
 
 # Keypress and mouse settings
@@ -38,6 +41,7 @@ total_label_dim = n_keys + n_clicks + n_mouse_x + n_mouse_y + 1  # +1 for marker
 
 # Data structure markers
 marker_byte = 255
+raw_frame_size = raw_n_pixels + n_keys + n_clicks + 2 + 1  # +1 for marker
 frame_size = n_pixels + n_keys + n_clicks + 2 + 1  # +1 for marker
 
 # Sequence length

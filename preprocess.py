@@ -8,19 +8,6 @@ class ScreendataPreprocessor:
     def __init__(self, path, output_dir):
         self.path = path
         self.output_dir = output_dir
-        self.frame_width = frame_width
-        self.frame_height = frame_height
-        self.n_pixels = self.frame_width * self.frame_height
-        self.n_keys = n_keys
-        self.n_clicks = n_clicks
-        self.mouse_x_bins = mouse_x_bins
-        self.mouse_y_bins = mouse_y_bins
-        self.n_mouse_x = len(self.mouse_x_bins)
-        self.n_mouse_y = len(self.mouse_y_bins)
-        self.total_label_dim = self.n_keys + self.n_clicks + self.n_mouse_x + self.n_mouse_y + 1
-        self.marker_byte = marker_byte
-        self.frame_size = self.n_pixels + self.n_keys + self.n_clicks + 2 + 1
-        self.n_timesteps = n_timesteps
 
         os.makedirs(self.output_dir, exist_ok=True)
 
@@ -34,39 +21,45 @@ class ScreendataPreprocessor:
         with open(self.path, 'rb') as f:
             data = f.read()
 
-        total_frames = len(data) // self.frame_size
+        total_frames = len(data) // raw_frame_size
         print(f"Loaded {total_frames} frames.")
 
         X_seq = []
         Y_seq = []
 
-        key_counts = np.zeros(self.n_keys, dtype=np.int64)
-        click_counts = np.zeros(self.n_clicks, dtype=np.int64)
-        yaw_bin_counts = np.zeros(self.n_mouse_x, dtype=np.int64)
-        pitch_bin_counts = np.zeros(self.n_mouse_y, dtype=np.int64)
+        key_counts = np.zeros(n_keys, dtype=np.int64)
+        click_counts = np.zeros(n_clicks, dtype=np.int64)
+        yaw_bin_counts = np.zeros(n_mouse_x, dtype=np.int64)
+        pitch_bin_counts = np.zeros(n_mouse_y, dtype=np.int64)
         total_valid_frames = 0
 
-        for i in tqdm(range(total_frames - self.n_timesteps)):
+        for i in tqdm(range(total_frames - n_timesteps)):
             frames = []
             labels = []
 
-            for t in range(self.n_timesteps):
-                offset = (i + t) * self.frame_size
+            for t in range(n_timesteps):
+                offset = (i + t) * raw_frame_size
 
-                frame_data = data[offset:offset + self.n_pixels]
-                key_data = data[offset + self.n_pixels : offset + self.n_pixels + self.n_keys]
-                click_data = data[offset + self.n_pixels + self.n_keys : offset + self.n_pixels + self.n_keys + self.n_clicks]
-                yaw_bin = data[offset + self.n_pixels + self.n_keys + self.n_clicks]
-                pitch_bin = data[offset + self.n_pixels + self.n_keys + self.n_clicks + 1]
-                marker = data[offset + self.frame_size - 1]
+                frame_data = data[offset:offset + raw_n_pixels]
+                key_data = data[offset + raw_n_pixels : offset + raw_n_pixels + n_keys]
+                click_data = data[offset + raw_n_pixels + n_keys : offset + raw_n_pixels + n_keys + n_clicks]
+                yaw_bin = data[offset + raw_n_pixels + n_keys + n_clicks]
+                pitch_bin = data[offset + raw_n_pixels + n_keys + n_clicks + 1]
+                marker = data[offset + raw_frame_size - 1]
 
-                if marker != self.marker_byte:
+                if marker != marker_byte:
                     print(f"Frame {i+t} has invalid marker. Skipping sequence.")
-                    print(f"Expected marker: {self.marker_byte}, Found: {marker} at frame {i + t}")
+                    print(f"Expected marker: {marker_byte}, Found: {marker} at frame {i + t}")
                     break
 
-                gray = np.frombuffer(frame_data, dtype=np.uint8).reshape((self.frame_height, self.frame_width))
-                rgb = np.stack([gray] * 3, axis=-1)
+                if all(b == 0 for b in frame_data):
+                    print(f"Warning: Frame {i + t} has all zero pixel data.")
+                    break
+
+                gray = np.frombuffer(frame_data, dtype=np.uint8).reshape((raw_frame_height, raw_frame_width))
+                gray_downscaled = gray
+                # gray_downscaled = downscale_java_style(gray, frame_height, frame_width)
+                rgb = np.stack([gray_downscaled] * 3, axis=-1)
 
                 key_array = np.frombuffer(key_data, dtype=np.uint8)
                 click_array = np.frombuffer(click_data, dtype=np.uint8)
@@ -82,13 +75,13 @@ class ScreendataPreprocessor:
                 label = np.concatenate([
                     np.frombuffer(key_data, dtype=np.uint8).astype(np.float32),
                     np.frombuffer(click_data, dtype=np.uint8).astype(np.float32),
-                    self.one_hot(yaw_bin, self.n_mouse_x),
-                    self.one_hot(pitch_bin, self.n_mouse_y),
+                    self.one_hot(yaw_bin, n_mouse_x),
+                    self.one_hot(pitch_bin, n_mouse_y),
                     np.array([0.0], dtype=np.float32)
                 ])
                 labels.append(label)
 
-            if len(frames) == self.n_timesteps:
+            if len(frames) == n_timesteps:
                 X_seq.append(frames)
                 Y_seq.append(labels)
 
@@ -110,6 +103,45 @@ class ScreendataPreprocessor:
             'pitch_bin_counts': pitch_bin_counts,
             'total_valid_frames': total_valid_frames
         }
+
+
+
+def downscale_java_style(image: np.ndarray, target_height: int, target_width: int) -> np.ndarray:
+    """
+    Replicate one pass of Java’s downscaler:
+      - average pixels in each block (integer division)
+      - optionally flip vertically (Java always does)
+      - integer‐only arithmetic
+
+    Args:
+        image: 2D gray np.uint8 array (h, w).
+        target_height: must divide image height exactly.
+        target_width: must divide image width exactly.
+    Returns:
+        2D np.uint8 array of shape (target_height, target_width).
+    """
+    height, width = image.shape
+    scale_x = width // target_width
+    scale_y = height // target_height
+
+    down = np.zeros((target_height, target_width), dtype=np.uint8)
+
+    for ty in range(target_height):
+        for tx in range(target_width):
+            total = 0
+            count = 0
+            for sy in range(scale_y):
+                for sx in range(scale_x):
+                    src_x = tx * scale_x + sx
+                    src_y = ty * scale_y + sy
+
+                    total += int(image[src_y, src_x])
+                    count += 1
+
+            down[ty, tx] = (total // count) if count else 0
+
+    return down
+
 
 
 if __name__ == "__main__":

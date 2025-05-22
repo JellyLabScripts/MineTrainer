@@ -3,9 +3,11 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import numpy as np
 import tensorflow as tf
-from typing import List, Optional
+from typing import List
 import time
 import uvicorn
+import matplotlib.pyplot as plt
+
 
 from config import *
 from train import crit_mse, custom_loss, wasd_acc, space_acc, Lclk_acc, Rclk_acc, m_x_acc, m_y_acc
@@ -73,6 +75,7 @@ async def predict(data: FrameInput):
         start_time = time.time()
 
         frame_np = np.array(data.frame, dtype=np.float32) / 255.0
+        visualize_frame(frame_np[0])
         output_data = app.state.model_wrapper.predict(frame_np)
 
         elapsed_time = (time.time() - start_time) * 1000  # milliseconds
@@ -86,6 +89,30 @@ async def predict(data: FrameInput):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+
+def visualize_frame(frame_data: np.ndarray):
+    """
+    Visualize a single frame received by the API with optional action information
+
+    Args:
+        frame_data: The frame data as a numpy array (height, width, channels)
+    """
+    plt.figure(figsize=(16, 8))
+
+    # Display the frame
+    plt.subplot(1, 2, 1)
+    if frame_data.dtype == np.float32:
+        frame = (frame_data * 255).astype(np.uint8)
+    else:
+        frame = frame_data
+
+    plt.imshow(frame)
+    plt.title(f"Received Frame\n{frame.shape[1]}x{frame.shape[0]}")
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":
