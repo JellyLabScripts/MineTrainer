@@ -89,13 +89,16 @@ def build_model(load_weights=True):
     base_model = EfficientNetB0(weights='imagenet', input_shape=(input_shape[1:]), include_top=False)
     base_model.trainable = True
 
-    print(base_model.layers)
-    intermediate_model = Model(inputs=base_model.input, outputs=base_model.layers[161].output)
+    # for (i, layers) in enumerate(base_model.layers):
+    #    print(i)
+    #    print(layers.output.shape)
+
+    intermediate_model = Model(inputs=base_model.input, outputs=base_model.layers[52].output)
     intermediate_model.trainable = True
 
     input_1 = Input(shape=input_shape, name='main_in')
     x = TimeDistributed(intermediate_model)(input_1)
-    x = ConvLSTM2D(filters=64, kernel_size=(3, 3), stateful=False, return_sequences=True)(x)
+    x = ConvLSTM2D(filters=32, kernel_size=(3, 3), stateful=False, return_sequences=True)(x)
     x = TimeDistributed(Flatten())(x)
 
     # 3) add shared fc layers
@@ -103,10 +106,20 @@ def build_model(load_weights=True):
 
     # 4) set up outputs, sepearate outputs will allow seperate losses to be applied
     output_1 = TimeDistributed(Dense(n_keys, activation='sigmoid'))(dense_5)
+    output_1 = TimeDistributed(Dropout(0.2))(output_1)
+
     output_2 = TimeDistributed(Dense(n_clicks, activation='sigmoid'))(dense_5)
+    output_2 = TimeDistributed(Dropout(0.2))(output_2)
+
     output_3 = TimeDistributed(Dense(n_mouse_x, activation='softmax'))(dense_5)
+    output_3 = TimeDistributed(Dropout(0.2))(output_3)
+
     output_4 = TimeDistributed(Dense(n_mouse_y, activation='softmax'))(dense_5)
+    output_4 = TimeDistributed(Dropout(0.2))(output_4)
+
     output_5 = TimeDistributed(Dense(1, activation='linear'))(dense_5)
+    output_5 = TimeDistributed(Dropout(0.2))(output_5)
+
     output_all = concatenate([output_1, output_2, output_3, output_4, output_5], axis=-1)
     model = Model(input_1, output_all)
 
@@ -189,7 +202,7 @@ class EpochCheckpoint(Callback):
         if (epoch + 1) % self.save_freq == 0:
             epoch_dir = os.path.join(self.output_dir, f"epoch_{epoch + 1}")
             os.makedirs(epoch_dir, exist_ok=True)
-            model_path = os.path.join(epoch_dir, "model_84x45.keras")
+            model_path = os.path.join(epoch_dir, "model_84x45_with_dropout.keras")
             self.model.save(model_path)
             print(f"\nModel saved to {model_path}")
 

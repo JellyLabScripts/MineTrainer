@@ -122,11 +122,11 @@ def visualize_preprocessed_data(input_dir, output_dir, name, sequence_idx=0, num
 
 
 if __name__ == "__main__":
-    name = "screendata_2025-05-11_10-12-14-155"
+    name = "screendata_80x45_rohan0852_2025-05-21_19-28-53-121"
     input_dir = os.path.join(preprocessed_dataset_dir, "input")
     output_dir = os.path.join(preprocessed_dataset_dir, "output")
 
-    NUM_SEQUENCES = 20
+    NUM_SEQUENCES = 100
 
     for sequence_idx in range(0, NUM_SEQUENCES):
         visualize_preprocessed_data(

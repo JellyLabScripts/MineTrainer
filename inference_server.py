@@ -75,7 +75,7 @@ async def predict(data: FrameInput):
         start_time = time.time()
 
         frame_np = np.array(data.frame, dtype=np.float32) / 255.0
-        visualize_frame(frame_np[0])
+        # visualize_frame(frame_np[0])
         output_data = app.state.model_wrapper.predict(frame_np)
 
         elapsed_time = (time.time() - start_time) * 1000  # milliseconds

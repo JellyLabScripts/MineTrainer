@@ -7,16 +7,16 @@ saved_model_path = 'saved_model/minecraft_behavior_model.keras'
 checkpoint_path = 'saved_model/minecraft_behavior_model.weights.h5'
 
 # Lite model conversion
-regular_model_path = 'saved_checkpoints/epoch_17/model.keras'
+regular_model_path = 'saved_model/model_84x45_with_dropout.keras'
 target_model_for_lite_conversion_path = regular_model_path
 lite_model_path = 'tflite_model/minecraft_behavior_model.tflite'
 
 # Frame dimensions
-raw_frame_width = 80
-raw_frame_height = 45
+raw_frame_width = 160
+raw_frame_height = 90
 raw_n_pixels = raw_frame_width * raw_frame_height
-frame_width = 80
-frame_height = 45
+frame_width = 160
+frame_height = 90
 n_pixels = frame_width * frame_height
 
 # Keypress and mouse settings

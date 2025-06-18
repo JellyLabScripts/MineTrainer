@@ -57,9 +57,8 @@ class ScreendataPreprocessor:
                     break
 
                 gray = np.frombuffer(frame_data, dtype=np.uint8).reshape((raw_frame_height, raw_frame_width))
-                gray_downscaled = gray
-                # gray_downscaled = downscale_java_style(gray, frame_height, frame_width)
-                rgb = np.stack([gray_downscaled] * 3, axis=-1)
+                gray_contrast = gray # increase_contrast(gray, 0, 255)
+                rgb = np.stack([gray_contrast] * 3, axis=-1)
 
                 key_array = np.frombuffer(key_data, dtype=np.uint8)
                 click_array = np.frombuffer(click_data, dtype=np.uint8)
@@ -105,43 +104,11 @@ class ScreendataPreprocessor:
         }
 
 
-
-def downscale_java_style(image: np.ndarray, target_height: int, target_width: int) -> np.ndarray:
-    """
-    Replicate one pass of Java’s downscaler:
-      - average pixels in each block (integer division)
-      - optionally flip vertically (Java always does)
-      - integer‐only arithmetic
-
-    Args:
-        image: 2D gray np.uint8 array (h, w).
-        target_height: must divide image height exactly.
-        target_width: must divide image width exactly.
-    Returns:
-        2D np.uint8 array of shape (target_height, target_width).
-    """
-    height, width = image.shape
-    scale_x = width // target_width
-    scale_y = height // target_height
-
-    down = np.zeros((target_height, target_width), dtype=np.uint8)
-
-    for ty in range(target_height):
-        for tx in range(target_width):
-            total = 0
-            count = 0
-            for sy in range(scale_y):
-                for sx in range(scale_x):
-                    src_x = tx * scale_x + sx
-                    src_y = ty * scale_y + sy
-
-                    total += int(image[src_y, src_x])
-                    count += 1
-
-            down[ty, tx] = (total // count) if count else 0
-
-    return down
-
+def increase_contrast(img, min_val=0, max_val=255):
+    img = img.astype(np.float32)
+    img = (img - img.min()) / (img.max() - img.min() + 1e-5)  # normalize to 0–1
+    img = img * (max_val - min_val) + min_val
+    return np.clip(img, 0, 255).astype(np.uint8)
 
 
 if __name__ == "__main__":

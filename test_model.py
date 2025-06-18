@@ -83,9 +83,9 @@ def test_model(name, input_dir, output_dir, index=0, visualize=True, print_raw_d
 
 if __name__ == "__main__":
     # Set these manually
-    name = "screendata_rohan0852_2025-05-16_15-19-53-430"
-    input_dir = "preprocessed_dataset/preprocessed_validation_dataset/input"
-    output_dir = "preprocessed_dataset/preprocessed_validation_dataset/output"
+    name = "screendata_80x45_sKarl3t_2025-05-20_23-23-23-500"
+    input_dir = "preprocessed_dataset/preprocessed_training_dataset/input"
+    output_dir = "preprocessed_dataset/preprocessed_training_dataset/output"
 
     for i in range(66):
         test_model(name, input_dir, output_dir, index=i, visualize=True, print_raw_data=False)
