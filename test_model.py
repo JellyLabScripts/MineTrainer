@@ -17,8 +17,7 @@ class ModelWrapper:
             'Lclk_acc': Lclk_acc,
             'Rclk_acc': Rclk_acc,
             'm_x_acc': m_x_acc,
-            'm_y_acc': m_y_acc,
-            'crit_mse': crit_mse
+            'm_y_acc': m_y_acc
         })
 
         self.input_shape = self.model.input_shape[1:]
@@ -83,9 +82,9 @@ def test_model(name, input_dir, output_dir, index=0, visualize=True, print_raw_d
 
 if __name__ == "__main__":
     # Set these manually
-    name = "screendata_80x45_sKarl3t_2025-05-20_23-23-23-500"
+    name = "screendata_160x90_FakeAstolfo_2025-06-18_14-35-40-761"
     input_dir = "preprocessed_dataset/preprocessed_training_dataset/input"
     output_dir = "preprocessed_dataset/preprocessed_training_dataset/output"
 
-    for i in range(66):
+    for i in range(50):
         test_model(name, input_dir, output_dir, index=i, visualize=True, print_raw_data=False)

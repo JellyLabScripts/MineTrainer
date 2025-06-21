@@ -40,18 +40,9 @@ def custom_loss(y_true, y_pred):
         y_true[:, :, n_keys + n_clicks + n_mouse_x:n_keys + n_clicks + n_mouse_x + n_mouse_y],
         y_pred[:, :, n_keys + n_clicks + n_mouse_x:n_keys + n_clicks + n_mouse_x + n_mouse_y])
 
-    # critic loss -- measuring between consecutive time steps
-    #  = ((reward_t + gamma  v_t+1) - v_t)^2
-    loss_crit = 10 * losses.MSE(
-        y_true[:, :-1, n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1]
-        + GAMMA * y_pred[:, 1:,
-                  n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1]
-        , y_pred[:, :-1, n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1])
-
-    return K.concatenate([loss1a, loss1b, loss2a, loss2b, loss3, loss4, loss_crit])
+    return K.mean(loss1a + loss1b + loss2a + loss2b + loss3 + loss4)
 
 
-# metrics for each part of interest - useful for debugging
 def wasd_acc(y_true, y_pred):
     return keras.metrics.binary_accuracy(y_true[:, :, 0:4], y_pred[:, :, 0:4])
 
@@ -75,13 +66,6 @@ def m_y_acc(y_true, y_pred):
         y_true[:, :, n_keys + n_clicks + n_mouse_x:n_keys + n_clicks + n_mouse_x + n_mouse_y],
         y_pred[:, :, n_keys + n_clicks + n_mouse_x:n_keys + n_clicks + n_mouse_x + n_mouse_y])
 
-def crit_mse(y_true, y_pred):
-    return 100 * losses.MSE(
-        y_true[:, :-1, n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1]
-        + GAMMA * y_pred[:, 1:,
-                  n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1]
-        , y_pred[:, :-1, n_keys + n_clicks + n_mouse_x + n_mouse_y:n_keys + n_clicks + n_mouse_x + n_mouse_y + 1])
-
 def build_model(load_weights=True):
     # useful tutorial for building, https://keras.io/getting-started/functional-api-guide/
     print('-- building model from scratch --')
@@ -98,7 +82,7 @@ def build_model(load_weights=True):
 
     input_1 = Input(shape=input_shape, name='main_in')
     x = TimeDistributed(intermediate_model)(input_1)
-    x = ConvLSTM2D(filters=32, kernel_size=(3, 3), stateful=False, return_sequences=True)(x)
+    x = ConvLSTM2D(filters=64, kernel_size=(3, 3), stateful=False, return_sequences=True)(x)
     x = TimeDistributed(Flatten())(x)
 
     # 3) add shared fc layers
@@ -106,19 +90,10 @@ def build_model(load_weights=True):
 
     # 4) set up outputs, sepearate outputs will allow seperate losses to be applied
     output_1 = TimeDistributed(Dense(n_keys, activation='sigmoid'))(dense_5)
-    output_1 = TimeDistributed(Dropout(0.2))(output_1)
-
     output_2 = TimeDistributed(Dense(n_clicks, activation='sigmoid'))(dense_5)
-    output_2 = TimeDistributed(Dropout(0.2))(output_2)
-
     output_3 = TimeDistributed(Dense(n_mouse_x, activation='softmax'))(dense_5)
-    output_3 = TimeDistributed(Dropout(0.2))(output_3)
-
     output_4 = TimeDistributed(Dense(n_mouse_y, activation='softmax'))(dense_5)
-    output_4 = TimeDistributed(Dropout(0.2))(output_4)
-
     output_5 = TimeDistributed(Dense(1, activation='linear'))(dense_5)
-    output_5 = TimeDistributed(Dropout(0.2))(output_5)
 
     output_all = concatenate([output_1, output_2, output_3, output_4, output_5], axis=-1)
     model = Model(input_1, output_all)
@@ -131,7 +106,7 @@ def build_model(load_weights=True):
     print(model.summary())
 
     opt = optimizers.Adam(learning_rate=l_rate)
-    model.compile(loss=custom_loss, optimizer=opt, metrics=[Lclk_acc, Rclk_acc, wasd_acc, space_acc, m_x_acc, m_y_acc, crit_mse])
+    model.compile(loss=custom_loss, optimizer=opt, metrics=[Lclk_acc, Rclk_acc, wasd_acc, space_acc, m_x_acc, m_y_acc])
     print('successfully compiled model')
     return model
 
@@ -202,7 +177,7 @@ class EpochCheckpoint(Callback):
         if (epoch + 1) % self.save_freq == 0:
             epoch_dir = os.path.join(self.output_dir, f"epoch_{epoch + 1}")
             os.makedirs(epoch_dir, exist_ok=True)
-            model_path = os.path.join(epoch_dir, "model_84x45_with_dropout.keras")
+            model_path = os.path.join(epoch_dir, "model_160x90_with_dropout.keras")
             self.model.save(model_path)
             print(f"\nModel saved to {model_path}")
 

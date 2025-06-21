@@ -7,7 +7,7 @@ saved_model_path = 'saved_model/minecraft_behavior_model.keras'
 checkpoint_path = 'saved_model/minecraft_behavior_model.weights.h5'
 
 # Lite model conversion
-regular_model_path = 'saved_model/model_84x45_with_dropout.keras'
+regular_model_path = 'saved_model/minecraft_behavior_model.keras'
 target_model_for_lite_conversion_path = regular_model_path
 lite_model_path = 'tflite_model/minecraft_behavior_model.tflite'
 
@@ -48,7 +48,7 @@ frame_size = n_pixels + n_keys + n_clicks + 2 + 1  # +1 for marker
 n_timesteps = 20
 
 # Actual training settings
-batch_size = 1
+batch_size = 16
 l_rate = 0.0001
 GAMMA = 0.995  # reward decay for RL setting
 dimension = (frame_height, frame_width)

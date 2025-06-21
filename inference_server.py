@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 from config import *
-from train import crit_mse, custom_loss, wasd_acc, space_acc, Lclk_acc, Rclk_acc, m_x_acc, m_y_acc
+from train import custom_loss, wasd_acc, space_acc, Lclk_acc, Rclk_acc, m_x_acc, m_y_acc
 
 
 class ModelWrapper:
