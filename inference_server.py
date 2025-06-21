@@ -27,7 +27,6 @@ class ModelWrapper:
                 'Rclk_acc': Rclk_acc,
                 'm_x_acc': m_x_acc,
                 'm_y_acc': m_y_acc,
-                'crit_mse': crit_mse
             }
         )
         self.input_shape = self.model.input_shape[1:]
